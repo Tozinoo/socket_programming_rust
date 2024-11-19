@@ -1,16 +1,18 @@
-use std::net::*;
+mod server;
+mod client;
 
-const LOCAL_ADDR: &str = "127.0.0.1:8081";
+use std::env::args;
+use std::net::IpAddr;
 
-fn main() {
-    let bind = TcpListener::bind(LOCAL_ADDR).expect("bind error");
-    let accept = TcpListener::accept(&bind).expect("accpet error");
-
-    println!("## Server Running ##");
-
-    for stream in bind.incoming() {
-        if stream.is_ok() {
-            println!("클라이언트 연결")
-        }
+fn main() -> std::io::Result<()> {
+    let args: Vec<String> = args().collect();
+    if args.len() != 3 {
+        eprintln!("Usage: {} <IP> <PORT>", args[0]);
+        std::process::exit(1);
     }
+
+    let server_ip: IpAddr = args[1].parse().expect("Invalid IP address format");
+    let server_port: u16 = args[2].parse().expect("Invalid Port format");
+
+    server::start_server(server_ip, server_port)
 }
