@@ -88,6 +88,7 @@ dependencies = [
 name = "rust-socket"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "mio",
  "rayon",
 ]
