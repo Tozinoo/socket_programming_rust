@@ -6,6 +6,8 @@ use std::io::{self};
 use std::mem;
 use std::os::raw::c_int;
 use crate::SocketError;
+use socket::set_nonblocking;
+use crate::socket::socket;
 
 pub fn create_socket() -> Result<c_int, SocketError> {
     let sockfd = unsafe { socket(libc::AF_INET, libc::SOCK_STREAM, 0) };
@@ -15,6 +17,11 @@ pub fn create_socket() -> Result<c_int, SocketError> {
     } else {
         // 소켓 옵션 설정
         if let Err(e) = set_distributed_socket_options(sockfd) {
+            unsafe { libc::close(sockfd) }; // 실패 시 소켓 닫기
+            return Err(SocketError::SetOption(e));
+        }
+
+        if let Err(e) = set_nonblocking(sockfd) {
             unsafe { libc::close(sockfd) }; // 실패 시 소켓 닫기
             return Err(SocketError::SetOption(e));
         }
@@ -61,10 +68,14 @@ pub fn accept_connection(sockfd: c_int) -> Result<(c_int, sockaddr_in), SocketEr
     };
 
     if client_fd < 0 {
-        Err(SocketError::Accept(io::Error::last_os_error()))
-    } else {
-        Ok((client_fd, client_addr))
+        let err = io::Error::last_os_error();
+        if err.kind() == io::ErrorKind::WouldBlock {
+            return Err(SocketError::WouldBlock);
+        } else {
+            return Err(SocketError::Accept(err));
+        }
     }
+    Ok((client_fd, client_addr))
 }
 
 fn set_distributed_socket_options(sockfd: c_int) -> io::Result<()> {

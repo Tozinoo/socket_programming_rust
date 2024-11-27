@@ -40,3 +40,39 @@
 //         )?;
 //     }
 // }
+
+use mio::net::TcpListener;
+use mio::{Poll, Token, Interest};
+use std::net::SocketAddr;
+
+pub const SERVER: Token = Token(0);
+
+pub fn setup_listener(addr: &SocketAddr, poll: &mut Poll) -> std::io::Result<TcpListener> {
+    let mut listener = TcpListener::bind(*addr)?;
+    poll.registry()
+        .register(&mut listener, SERVER, Interest::READABLE)?;
+    println!("Listening on {}", addr);
+    Ok(listener)
+}
+
+pub fn accept_clients(
+    listener: &mut TcpListener,
+) -> Vec<(mio::net::TcpStream, SocketAddr)> {
+    let mut accepted_clients = Vec::new();
+    loop {
+        match listener.accept() {
+            Ok((stream, addr)) => {
+                println!("New client connected: {}", addr);
+                accepted_clients.push((stream, addr));
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                break; // 더 이상 수락할 연결 없음
+            }
+            Err(e) => {
+                eprintln!("Error accepting client: {}", e);
+                break;
+            }
+        }
+    }
+    accepted_clients
+}

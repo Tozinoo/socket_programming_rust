@@ -7,10 +7,14 @@ pub enum SocketError {
     Bind(io::Error),
     Listen(io::Error),
     Accept(io::Error),
+    WouldBlock
 }
 
 impl From<io::Error> for SocketError {
     fn from(error: io::Error) -> Self {
-        SocketError::Create(error)
+        match error.kind() {
+            io::ErrorKind::WouldBlock => SocketError::WouldBlock,
+            _ => SocketError::Create(error),
+        }
     }
 }
